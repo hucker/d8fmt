@@ -20,36 +20,42 @@ memorable and sequential.  For most cases you can just look at it and does the r
 The day of week, week of year, day of year tags are correct for that date. but unfortunately is
 just as cryptic as the %format used by the standard tool.
 
-| Input | Explanation                                  |
-| --- |----------------------------------------------|
-| `2004` | Year (4-digit)                               |
-| `10` | Month (October)                              |
-| `31` | Day of the month                             |
-| `13` | Hour (24-hour clock)                         |
-| `01` | Hour (12-hour clock)                         |
-| `12` | Minute                                       |
-| `11` | Second                                       |
-| `44` | Week of the year                             |
-| `43` | Week of the year (alternate)                 |
-| `305` | Day of the year                              |
-| `Sun` | Day of the week (abbreviated)                |
-| `Sunday` | Day of the week (full name)                  |
-| `Oct` | Month (abbreviated)                          |
-| `October` | Month (full name)                            |
-| `0` | Day of the week (Sunday = 0)                 |
-| `7` | Day of the week (Sunday, ISO Monday = 1-7)   |
-
-
+| **Canonical #** | **Macro**   | **Description **                                      | **Format ID** |
+|-----------------|-------------|-------------------------------------------------------| --- |
+| `01`            | `{HR12}`    | Hour in 12-hour clock (zero-padded)                   | `%I` |
+| `13`            | `{HR24}`    | Hour in 24-hour clock (zero-padded)                   | `%H` |
+| `305`           | `{DOY}`     | Day of the year (1–366, zero-padded)                  | `%j` |
+| `04`            | `{YEAR2}`   | Year without century (last two digits)                | `%y` |
+| `2004`          | `{YEAR4}`   | Year with century                                     | `%Y` |
+| `October`       | `{MONTH}`   | Full month name                                       | `%B` |
+| `Oct`           | `{MONTH3}`  | Abbreviated month name                                | `%b` |
+| `10`            | `{MONTH#}`  | Month as a number (zero-padded, 01–12)                | `%m` |
+| `Sunday`        | `{DAY}`     | Full weekday name                                     | `%A` |
+| `Sun`           | `{DAY3}`    | Abbreviated weekday name                              | `%a` |
+| `31`            | `{DAY#}`    | Day of the month (zero-padded)                        | `%d` |
+| `12`            | `{MINUTE}`  | Minute (zero-padded)                                  | `%M` |
+| `11`            | `{SECOND}`  | Second (zero-padded)                                  | `%S` |
+| `.000000`       | `{FRACSEC}` | Microsecond (zero-padded, 6 digits)                   | `%f` |
+| `AM`            | `{AM}`      | AM/PM marker                                          | `%p` |
+| `PM`            | `{PM}`      | AM/PM marker                                          | `%p` |
+| `44`            | `{WOY}`     | Week of the year (Sunday as first day)                | `%U` |
+| `43`            | `{WOYISO}`  | ISO week number of the year (Monday as first day)     | `%W` |
+| `7`             | `{WDAY#ISO}` | Day of the week (ISO, Monday=1 to Sunday=7)           | `%u` |
+| `0`             | `{WDAY#}`   | Day of the week (Sunday-based, 0=Sunday to 6=Saturday) | `%w` |
+| _N/A_           | `{TZ}`      | Timezone abbreviation                                 | `%Z` |
+| _N/A_           | `{UTCOFF}`  | UTC offset in the form ±HHMM                          | `%z` |
 
 So what you can do now is use those values to for the date format that you want.
 
 ```shell
->>> d8fmt.transform_format("2004-10-31")
+>>> d8fmt.snap_fmt("2004-10-31")
 '%Y-%m-%d'
->>> d8fmt.transform_format("2004-10-31 13-12-11")
+>>> d8fmt.snap_fmt("2004-10-31 13-12-11")
 '%Y-%m-%d %H-%M-%S'
->>>d8fmt.transform_format("Oct. 31 2004 01-12-11 PM")
+>>>d8fmt.snap_fmt("Oct. 31 2004 01-12-11 PM")
 '%b. %d %Y %I-%M-%S %p'
+d8fmt.snap_fmt("{YEAR4}-{MONTH#}-{DAY#}T{HR24}:{MINUTE}:{SECOND}")
+'%Y-%m-%dT%H:%M:%S'
 ```
 
 
@@ -99,15 +105,15 @@ cd <project-folder>
 
 ### Import the Module
 ```python
-from d8fmt import transform_format, is_zone_free
+from d8fmt import snap_fmt, is_zone_free
 ```
 
 ### Transform a Format String
 Convert a canonical string representation into a proper `strftime` format:
 ```python
-from d8fmt import transform_format
+from d8fmt import snap_fmt
 
-output_format = transform_format("2004-10-31")  # Example input
+output_format = snap_fmt("2004-10-31")  # Example input
 print(output_format)  # Output: '%Y-%m-%d'
 ```
 

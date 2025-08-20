@@ -10,10 +10,8 @@ Rules:
   - Only tokens present in the canonical instant are allowed for formatting.
   - Literals in the format strings are preserved as is.
   - Time zones are strictly validated:
-    - Offsets like [+/-dddd] must include a leading space.
-    - Timezone abbreviations (e.g., PST, GMT) are explicitly prohibited.
+  - Timezone abbreviations (e.g., PST, GMT) are explicitly prohibited.
   - Fractional seconds:
-    - Implemented via `%<N>f` (custom format), where `N` specifies the number of zeros after the decimal point.
     - Always render fractional seconds with zero padding.
   - The output format uses cross-platform `strftime`/`strptime` directives.
   - Token replacement uses an ordered mapping to ensure correctness.
@@ -22,7 +20,7 @@ Functions:
   - `is_zone_free(fmt: str) -> bool`:
     Validates the absence of unsupported timezone formats, offsets, or abbreviations.
 
-  - `transform_format(fmt: str) -> str`:
+  - `snap_fmt(fmt: str) -> str`:
     Converts a format string using token replacement based on the canonical instant.
     Enforces all rules, validates timezones, and maps tokens into corresponding strftime directives.
 
@@ -49,9 +47,78 @@ import re
 
 
 CANONICAL: dt.datetime = dt.datetime(
-    2004, 10, 31, 13, 12, 11,
-
+    2004, 10, 31, 13, 12, 11,tzinfo=dt.timezone.utc
 )
+
+# Replacement mapping.  Note we take advantage of
+# the diction being order so as we iterate over these items
+# they are going in the order we specifiy
+DATETIME_LOOKUP_TABLE = {
+    "{HR12}": "%I",
+    "{HR24}": "%H",
+    '{DOY}': "%j",
+    "{YEAR2}": "%y",
+    "{YEAR4}": "%Y",
+    "{MONTH}": "%B",
+    "{MONTH3}": "%b",
+    "{MONTH#}": "%m",
+    "{DAY}": "%A",
+    "{DAY3}": "%a",
+    "{DAY#}": "%d",
+    "{HOUR}": "%I",
+    "{MINUTE}": "%M",
+    "{SECOND}": "%S",
+    "{FRACSEC}": "%f",
+    "{AM}": "%p",
+    "{PM}": "%p",
+    "{WOY}": "%U",
+    "{WOYISO}": "%W",
+    "{WDAY#ISO}": "%u",
+    "{WDAY#}": "%w",
+    "{TZ}": "%Z",
+    "{UTCOFF}": "%z",
+    "{LOCALE}":"%x",
+
+    ".000000": ".%f",  # Microseconds (truncated example)
+    "2004": "%Y",  # Year (4-digit)
+    "305": "%j",  # Day of the year
+    "October": "%B",  # Full month name
+    "OCTOBER": "%B",  # Full month name
+    "October": "%B",  # Full month name
+    "october": "%B",  # Full month name
+    "Oct": "%b",  # Abbreviated month name
+    "OCT": "%b",  # Abbreviated month name
+    "oct": "%b",  # Abbreviated month name
+    "Sunday": "%A",  # Full weekday name
+    "SUNDAY": "%A",  # Full weekday name
+    "sunday": "%A",  # Full weekday name
+    "SUN": "%a",  # Abbreviated weekday name
+    "Sun": "%a",  # Abbreviated weekday name
+    "sun": "%a",  # Abbreviated weekday name
+    "01": "%I",  # Hour (12-hour clock)
+    "04": "%y",  # Year (last 2 digits)
+    "10": "%m",  # Month number
+    "11": "%S",  # Seconds
+    "12": "%M",  # Minute
+    "13": "%H",  # Hour (24-hour clock)
+    "31": "%d",  # Day of the month
+    "44": "%U",  # Week of the year (starting with Sunday)
+    "43": "%W",  # Week of the year (starting with Monday)
+    "AM": "%p",  # AM/PM marker
+    "PM": "%p",  # AM/PM marker
+    "am": "%p",  # AM/PM marker
+    "pm": "%p",  # AM/PM marker
+    # ".000000": ".%f",  # Microseconds (truncated example)
+    # ".00000": ".%f" , # Microseconds (truncated example)
+    # ".0000": ".%f",  # Microseconds (truncated example)
+    # ".000": ".%f",  # Microseconds (truncated example)
+    # ".00": ".%f",  # Microseconds (truncated example)
+    # ".0": ".%f",  # Microseconds (truncated example)
+
+    # These will be problematic
+    "0": "%w",  # 0th day of week ( 0-6)
+    "7": "%u",  # 7th day of week (ISO 1-7)
+}
 
 def is_zone_free(fmt: str):
     # Regex to detect the pattern +/-dddd
@@ -71,51 +138,9 @@ def is_zone_free(fmt: str):
     return True
 
 
-def transform_format(fmt: str) -> str:
-    # Replacement mapping.  Note we take advantage of
-    # the diction being order so as we iterate over these items
-    # they are going in the order we specifiy
-    replacements = {
-        ".000000": ".%f",  # Microseconds (truncated example)
-        "2004": "%Y",  # Year (4-digit)
-        "305": "%j",  # Day of the year
-        "October": "%B",  # Full month name
-        "OCTOBER": "%B",  # Full month name
-        "October": "%B",  # Full month name
-        "october": "%B",  # Full month name
-        "Oct": "%b",  # Abbreviated month name
-        "OCT": "%b",  # Abbreviated month name
-        "oct": "%b",  # Abbreviated month name
-        "Sunday": "%A",  # Full weekday name
-        "SUNDAY": "%A",  # Full weekday name
-        "sunday": "%A",  # Full weekday name
-        "SUN": "%a",  # Abbreviated weekday name
-        "Sun": "%a",  # Abbreviated weekday name
-        "sun": "%a",  # Abbreviated weekday name
-        "01": "%I",  # Hour (12-hour clock)
-        "04": "%y",  # Year (last 2 digits)
-        "10": "%m",  # Month number
-        "11": "%S",  # Seconds
-        "12": "%M", # Minute
-        "13": "%H",  # Hour (24-hour clock)
-        "31": "%d",  # Day of the month
-        "44": "%U",  # Week of the year (starting with Sunday)
-        "43": "%W",  # Week of the year (starting with Monday)
-        "AM": "%p",  # AM/PM marker
-        "PM": "%p",  # AM/PM marker
-        "am": "%p",  # AM/PM marker
-        "pm": "%p",  # AM/PM marker
-        #".000000": ".%f",  # Microseconds (truncated example)
-        #".00000": ".%f" , # Microseconds (truncated example)
-        #".0000": ".%f",  # Microseconds (truncated example)
-        #".000": ".%f",  # Microseconds (truncated example)
-        #".00": ".%f",  # Microseconds (truncated example)
-        #".0": ".%f",  # Microseconds (truncated example)
+def snap_fmt(fmt: str,replacments:dict[str,str]|None = None) -> str:
 
-        # These will be problematic
-        "0": "%w",   # 0th day of week ( 0-6)
-        "7": "%u",   # 7th day of week (ISO 1-7)
-    }
+    replacements = replacments or DATETIME_LOOKUP_TABLE
 
     # Regex to detect the pattern
     pattern = r"[+-]\d{4}"
@@ -129,7 +154,7 @@ def transform_format(fmt: str) -> str:
     return fmt
 
 
-class datetime_stez(dt.datetime):
+class datetime_snap(dt.datetime):
     def stezftime(self, fmt: str) -> str:
         """
         Provide a format string using the cannonical instant to transform
@@ -161,6 +186,6 @@ class datetime_stez(dt.datetime):
         would make a date string and insert that into another string.
 
         """
-        transformed_fmt = transform_format(fmt)
+        transformed_fmt = snap_fmt(fmt)
         return self.strftime(transformed_fmt)
 
