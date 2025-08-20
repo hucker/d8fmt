@@ -2,7 +2,7 @@ import datetime
 import locale
 
 import pytest
-from src.d8fmt import snap_fmt,CANONICAL,is_zone_free
+from src.d8fmt import snap_fmt,CANONICAL,is_zone_free,datetime_snap
 
 
 @pytest.mark.parametrize("input_format, expected_output", [
@@ -117,19 +117,19 @@ def test_is_zone_free_invalid_cases(invalid_date_string):
     ("Sun, Oct 31, 2004", "{DAY3}, {MONTH3} {DAY#}, {YEAR4}"),  # Abbreviated weekday + month
 
     # Time formats (24-hour and 12-hour)
-    ("13:12:11", "{HR24}:{MINUTE}:{SECOND}"),  # 24-hour time
-    ("01:12:11 PM", "{HR12}:{MINUTE}:{SECOND} {PM}"),  # 12-hour time with PM
+    ("13:12:11", "{HOUR24}:{MINUTE}:{SECOND}"),  # 24-hour time
+    ("01:12:11 PM", "{HOUR12}:{MINUTE}:{SECOND} {PM}"),  # 12-hour time with PM
 
     # Combined date and time formats
-    ("2004-10-31 13:12:11", "{YEAR4}-{MONTH#}-{DAY#} {HR24}:{MINUTE}:{SECOND}"),  # ISO 8601 with 24-hour time
-    ("10/31/2004 01:12:11 PM", "{MONTH#}/{DAY#}/{YEAR4} {HR12}:{MINUTE}:{SECOND} {PM}"),  # US format with 12-hour time
-    ("31-10-2004 13:12", "{DAY#}-{MONTH#}-{YEAR4} {HR24}:{MINUTE}"),  # European date with truncated time
-    ("31 October 2004 01:12 PM", "{DAY#} {MONTH} {YEAR4} {HR12}:{MINUTE} {PM}"),  # Full month with 12-hour time
+    ("2004-10-31 13:12:11", "{YEAR4}-{MONTH#}-{DAY#} {HOUR24}:{MINUTE}:{SECOND}"),  # ISO 8601 with 24-hour time
+    ("10/31/2004 01:12:11 PM", "{MONTH#}/{DAY#}/{YEAR4} {HOUR12}:{MINUTE}:{SECOND} {PM}"),  # US format with 12-hour time
+    ("31-10-2004 13:12", "{DAY#}-{MONTH#}-{YEAR4} {HOUR24}:{MINUTE}"),  # European date with truncated time
+    ("31 October 2004 01:12 PM", "{DAY#} {MONTH} {YEAR4} {HOUR12}:{MINUTE} {PM}"),  # Full month with 12-hour time
 
     # Date and time with alternate separators
-    ("2004.10.31 13:12:11", "{YEAR4}.{MONTH#}.{DAY#} {HR24}:{MINUTE}:{SECOND}"),  # Dot-separated date
-    ("10-31-2004 01:12 PM", "{MONTH#}-{DAY#}-{YEAR4} {HR12}:{MINUTE} {PM}"),  # US date with dashes and 12-hour time
-    ("2004/10/31/13/12", "{YEAR4}/{MONTH#}/{DAY#}/{HR24}/{MINUTE}"),  # Mixed slash format
+    ("2004.10.31 13:12:11", "{YEAR4}.{MONTH#}.{DAY#} {HOUR24}:{MINUTE}:{SECOND}"),  # Dot-separated date
+    ("10-31-2004 01:12 PM", "{MONTH#}-{DAY#}-{YEAR4} {HOUR12}:{MINUTE} {PM}"),  # US date with dashes and 12-hour time
+    ("2004/10/31/13/12", "{YEAR4}/{MONTH#}/{DAY#}/{HOUR24}/{MINUTE}"),  # Mixed slash format
 
     # Day of the year and week formats
     ("305", "{DOY}"),  # Day of the year for Oct 31
@@ -139,14 +139,14 @@ def test_is_zone_free_invalid_cases(invalid_date_string):
     ("7", "{WDAY#ISO}"),  # Day of the week (ISO standard, Monday-based, Oct 31 is Sunday=7)
 
     # ISO-specific datetime formats
-    ("2004-10-31T13:12:11", "{YEAR4}-{MONTH#}-{DAY#}T{HR24}:{MINUTE}:{SECOND}"),  # ISO 8601 datetime
-    ("2004-10-31T01:12:11 PM", "{YEAR4}-{MONTH#}-{DAY#}T{HR12}:{MINUTE}:{SECOND} {PM}"),  # ISO with 12-hour time
+    ("2004-10-31T13:12:11", "{YEAR4}-{MONTH#}-{DAY#}T{HOUR24}:{MINUTE}:{SECOND}"),  # ISO 8601 datetime
+    ("2004-10-31T01:12:11 PM", "{YEAR4}-{MONTH#}-{DAY#}T{HOUR12}:{MINUTE}:{SECOND} {PM}"),  # ISO with 12-hour time
 
     # Truncated and partial formats
     ("2004-10", "{YEAR4}-{MONTH#}"),  # Month and year only
     ("2004", "{YEAR4}"),  # Year only
-    ("13:12", "{HR24}:{MINUTE}"),  # Time without seconds
-    ("01:12 PM", "{HR12}:{MINUTE} {PM}"),  # Time without seconds in 12-hour format
+    ("13:12", "{HOUR24}:{MINUTE}"),  # Time without seconds
+    ("01:12 PM", "{HOUR12}:{MINUTE} {PM}"),  # Time without seconds in 12-hour format
     ("Sunday, 31 October", "{DAY}, {DAY#} {MONTH}"),  # Weekday with day and month
 
     # Various delimited and international formats
@@ -158,21 +158,22 @@ def test_is_zone_free_invalid_cases(invalid_date_string):
     ("31-October-2004", "{DAY#}-{MONTH}-{YEAR4}"),  # Non-English month name (e.g., German format)
 
     # Just time formats
-    ("13:12:11", "{HR24}:{MINUTE}:{SECOND}"),  # 24-hour
-    ("01:12 PM", "{HR12}:{MINUTE} {PM}"),  # 12-hour without seconds
-    ("13:12", "{HR24}:{MINUTE}"),  # 24-hour without seconds
-    ("01:12:11 PM", "{HR12}:{MINUTE}:{SECOND} {PM}"),  # 12-hour with seconds
+    ("13:12:11.000000", "{HOUR24}:{MINUTE}:{SECOND}.{MICROSEC}"),  # 24-hour
+    ("13:12:11", "{HOUR24}:{MINUTE}:{SECOND}"),  # 24-hour
+    ("01:12 PM", "{HOUR12}:{MINUTE} {PM}"),  # 12-hour without seconds
+    ("13:12", "{HOUR24}:{MINUTE}"),  # 24-hour without seconds
+    ("01:12:11 PM", "{HOUR12}:{MINUTE}:{SECOND} {PM}"),  # 12-hour with seconds
 
     # Escaped text (constant strings)
     ("Today is Sunday", "Today is {DAY}"),  # Text with replacement
     ("Year: 2004", "Year: {YEAR4}"),  # Text with constant string
-    ("Time: 13:12:11", "Time: {HR24}:{MINUTE}:{SECOND}"),  # Prefix with text
-    ("It's 01:12 PM!", "It's {HR12}:{MINUTE} {PM}!"),  # Suffix with text
+    ("Time: 13:12:11", "Time: {HOUR24}:{MINUTE}:{SECOND}"),  # Prefix with text
+    ("It's 01:12 PM!", "It's {HOUR12}:{MINUTE} {PM}!"),  # Suffix with text
     ("12:11 on October 31", "{MINUTE}:{SECOND} on {MONTH} {DAY#}"),  # Mixed text and replacements
 
     # Abbreviated/flexible cases
     ("04", "{YEAR2}"),  # Two-digit year
-    ("13-12", "{HR24}-{MINUTE}"),  # Hour and minute
+    ("13-12", "{HOUR24}-{MINUTE}"),  # Hour and minute
     ("Oct. 31, 2004", "{MONTH3}. {DAY#}, {YEAR4}"),  # Abbreviated month with period
     ("October-31st", "{MONTH}-{DAY#}st"),  # Month with ordinal suffix (hardcoded)
     ("31/10/04", "{DAY#}/{MONTH#}/{YEAR2}"),  # European style with two-digit year
@@ -215,3 +216,21 @@ def test_locale_date_format(set_locale):
     # %x should use the US locale format (MM/DD/YYYY)
     assert date1 == "10/31/2004"
     assert date1 == date2
+
+
+@pytest.mark.parametrize(
+    "format_string, expected_output",
+    [
+        ("{YEAR4}-{MONTH#}-{DAY#}", "2004-10-31"),  # Basic year-month-day format
+        ("{MONTH#}/{DAY#}/{YEAR2} at {HOUR24}:{MINUTE}:{SECOND}", "10/31/04 at 13:12:00"),  # Month/Day/Year
+        ("{DAY}, {MONTH} {DAY#}, {YEAR4} {HOUR12}:{MINUTE}:{SECOND} {PM}","Sunday, October 31, 2004 01:12:00 PM",
+        ),  # Full verbose date
+        ("Canonical datetime", "Canonical datetime"),  # Edge case with raw text
+    ],
+)
+def test_datetime_snap_formatting(format_string, expected_output):
+    # Create a `datetime_snap` object for the canonical datetime
+    d = datetime_snap(year=2004, month=10, day=31, hour=13, minute=12, second=0)
+    formatted_date = d.stezftime(format_string)
+    # Apply the custom stezftime method and verify the output
+    assert formatted_date == expected_output

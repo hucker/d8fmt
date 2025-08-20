@@ -2,50 +2,50 @@
 
 A Python module designed to transform canonical datetime examples into deterministic and 
 platform-independent format strings using `strftime`/`strptime` directives. 
-It ensures strict validation and formatting rules for tokens,  
-literals, and fractional seconds.
+Human readable "cannonical" dates, or human readable varaible substituions may be used
+to create format strings that are better than the cryptic formats that look like
+`%b. %d %Y %I-%M-%S %p`.
 
 In order to make the format strings (mostly) readable I chose to pick a date-time that
-has no ambiguity in the any of the fields required by a datetime object.  It is not
-as easy as you might think to land on a "good" day.  The example date that I chose 
-is Halloween of 2004.  This provides an example date that is (semi) memorable with no collisions
+has no ambiguity in any fields required by a datetime object.
 
-This is the canonical date that is used.
+The canonical date is:
 
 ```2004/10/31 13:12:11.000``` 
 
-For most of what is used those go a long way.  The hour 13 was chosen to select between 12 
-and 24 hr time using 01 or 13, other values were chosen to have no repeated values and to be
-memorable and sequential.  For most cases you can just look at it and does the right thing.
-The day of week, week of year, day of year tags are correct for that date. but unfortunately is
-just as cryptic as the %format used by the standard tool.
+This datetime has unique values for all numeric quantities as shown in the table below. Because
+they are all unique the values in the Canonical column may be used to build a format string,
+or the {MACRO} versions in the Macro column.  This mapping allows you to make date format
+strings that are readable.  Obviously it when you get to the day of year, day# of week things
+get a little cryptic, but both forms are much easier to read than the standard names.
 
-| **Canonical #** | **Macro**   | **Description **                                      | **Format ID** |
-|-----------------|-------------|-------------------------------------------------------| --- |
-| `01`            | `{HR12}`    | Hour in 12-hour clock (zero-padded)                   | `%I` |
-| `13`            | `{HR24}`    | Hour in 24-hour clock (zero-padded)                   | `%H` |
-| `305`           | `{DOY}`     | Day of the year (1–366, zero-padded)                  | `%j` |
-| `04`            | `{YEAR2}`   | Year without century (last two digits)                | `%y` |
-| `2004`          | `{YEAR4}`   | Year with century                                     | `%Y` |
-| `October`       | `{MONTH}`   | Full month name                                       | `%B` |
-| `Oct`           | `{MONTH3}`  | Abbreviated month name                                | `%b` |
-| `10`            | `{MONTH#}`  | Month as a number (zero-padded, 01–12)                | `%m` |
-| `Sunday`        | `{DAY}`     | Full weekday name                                     | `%A` |
-| `Sun`           | `{DAY3}`    | Abbreviated weekday name                              | `%a` |
-| `31`            | `{DAY#}`    | Day of the month (zero-padded)                        | `%d` |
-| `12`            | `{MINUTE}`  | Minute (zero-padded)                                  | `%M` |
-| `11`            | `{SECOND}`  | Second (zero-padded)                                  | `%S` |
-| `.000000`       | `{FRACSEC}` | Microsecond (zero-padded, 6 digits)                   | `%f` |
-| `AM`            | `{AM}`      | AM/PM marker                                          | `%p` |
-| `PM`            | `{PM}`      | AM/PM marker                                          | `%p` |
-| `44`            | `{WOY}`     | Week of the year (Sunday as first day)                | `%U` |
-| `43`            | `{WOYISO}`  | ISO week number of the year (Monday as first day)     | `%W` |
-| `7`             | `{WDAY#ISO}` | Day of the week (ISO, Monday=1 to Sunday=7)           | `%u` |
-| `0`             | `{WDAY#}`   | Day of the week (Sunday-based, 0=Sunday to 6=Saturday) | `%w` |
-| _N/A_           | `{TZ}`      | Timezone abbreviation                                 | `%Z` |
-| _N/A_           | `{UTCOFF}`  | UTC offset in the form ±HHMM                          | `%z` |
 
-So what you can do now is use those values to for the date format that you want.
+| **Canonical** | **Macro**    | **Description**                                  | **Format ID** |
+|---------------|--------------|--------------------------------------------------|---------------|
+| `01`          | `{HOUR12}`     | Hour in 12-hour clock (zero-padded)              | `%I`          |
+| `13`          | `{HOUR24}`     | Hour in 24-hour clock (zero-padded)              | `%H`          |
+| `305`         | `{DOY}`      | Day of the year (1–366, zero-padded)             | `%j`          |
+| `04`          | `{YEAR2}`    | Year without century (last two digits)           | `%y`          |
+| `2004`        | `{YEAR4}`    | Year with century                                | `%Y`          |
+| `October`     | `{MONTH}`    | Full month name                                  | `%B`          |
+| `Oct`         | `{MONTH3}`   | Abbreviated month name                           | `%b`          |
+| `10`          | `{MONTH#}`   | Month as a number (zero-padded, 01–12)           | `%m`          |
+| `Sunday`      | `{DAY}`      | Full weekday name                                | `%A`          |
+| `Sun`         | `{DAY3}`     | Abbreviated weekday name                         | `%a`          |
+| `31`          | `{DAY#}`     | Day of the month (zero-padded)                   | `%d`          |
+| `12`          | `{MINUTE}`   | Minute (zero-padded)                             | `%M`          |
+| `11`          | `{SECOND}`   | Second (zero-padded)                             | `%S`          |
+| `.000000`     | `{MICROSEC}` | Microsecond (zero-padded, 6 digits)              | `%f`          |
+| `AM`          | `{AM}`       | AM/PM marker                                     | `%p`          |
+| `PM`          | `{PM}`       | AM/PM marker                                     | `%p`          |
+| `44`          | `{WOY}`      | Week of the year (Sunday as first day)           | `%U`          |
+| `43`          | `{WOYISO}`   | ISO week number of the year (Mon as first day)   | `%W`          |
+| `7`           | `{WDAY#ISO}` | Day of the week (ISO, Monday=1 to Sunday=7)      | `%u`          |
+| `0`           | `{WDAY#}`    | Day of the week (Sunday-based, 0=Sun to 6=Sat) | `%w`          |
+| _N/A_         | `{TZ}`       | Timezone abbreviation                            | `%Z`          |
+| _N/A_         | `{UTCOFF}`   | UTC offset in the form ±HHMM                     | `%z`          |
+
+Here are some examples of converting these format strings into datetime ready format strings.
 
 ```shell
 >>> d8fmt.snap_fmt("2004-10-31")
@@ -54,13 +54,15 @@ So what you can do now is use those values to for the date format that you want.
 '%Y-%m-%d %H-%M-%S'
 >>>d8fmt.snap_fmt("Oct. 31 2004 01-12-11 PM")
 '%b. %d %Y %I-%M-%S %p'
-d8fmt.snap_fmt("{YEAR4}-{MONTH#}-{DAY#}T{HR24}:{MINUTE}:{SECOND}")
+>>d8fmt.snap_fmt("{YEAR4}-{MONTH#}-{DAY#}T{HOUR24}:{MINUTE}:{SECOND}")
 '%Y-%m-%dT%H:%M:%S'
+>>d8fmt.snap_fmt("{YEAR4}-{MONTH#}-{DAY#}T{HOUR24}:{MINUTE}:{SECOND}.{MICROSEC}")
+'%Y-%m-%dT%H:%M:%S.%f'
 ```
 
 
 Note: `d8fmt` does NOT support timezones or offsets as those seem to already only sort of work.
-Note: `d8fmt` does extend the `strftime` functionality even though there are many opportunities.
+Note: `d8fmt` does NOT (yet) extend the `strftime` functionality even though there are many opportunities.
 ---
 
 ## Features

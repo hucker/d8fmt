@@ -39,8 +39,6 @@ Error Handling:
   - Raises a `ValueError` if invalid timezone formats or abbreviations are detected.
 """
 
-
-
 import datetime as dt
 import re
 
@@ -54,8 +52,8 @@ CANONICAL: dt.datetime = dt.datetime(
 # the diction being order so as we iterate over these items
 # they are going in the order we specifiy
 DATETIME_LOOKUP_TABLE = {
-    "{HR12}": "%I",
-    "{HR24}": "%H",
+    "{HOUR12}": "%I",
+    "{HOUR24}": "%H",
     '{DOY}': "%j",
     "{YEAR2}": "%y",
     "{YEAR4}": "%Y",
@@ -68,7 +66,7 @@ DATETIME_LOOKUP_TABLE = {
     "{HOUR}": "%I",
     "{MINUTE}": "%M",
     "{SECOND}": "%S",
-    "{FRACSEC}": "%f",
+    "{MICROSEC}": "%f",
     "{AM}": "%p",
     "{PM}": "%p",
     "{WOY}": "%U",
