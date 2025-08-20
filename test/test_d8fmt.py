@@ -1,160 +1,103 @@
-# test_datetime_infer.py
-import datetime as dt
+import datetime
 import pytest
-from src.d8fmt import transform_format,is_zone_free,CANONICAL
+from src.d8fmt import transform_format,CANONICAL,is_zone_free
 
 
-@pytest.mark.parametrize("input_format,expected_output", [
+@pytest.mark.parametrize("input_format, expected_output", [
 
-    # 14. Week of the year (based on Sunday) and year (YYYY-W)
-    ("2005-26", "%Y-%U"),
+    # Day of Year
+    ("305", "%j"),  # Day of the year (October 31 is the 304th day of 2004)
 
-    # 15. Week of the year (based on Monday) and year (YYYY-W)
-    ("2005-27", "%Y-%W"),
+    # Year and month
+    ("2004", "%Y"),  # Year
+    ("10", "%m"),  # Month number
+    ("October", "%B"),  # Full month name
+    ("Oct", "%b"),  # Abbreviated month name
 
-    # 1. Basic ISO 8601 date format (YYYY-MM-DD HH:MM:SS)
-    ("2005-07-04 13:08:09", "%Y-%m-%d %H:%M:%S"),
+    # Day
+    ("31", "%d"),  # Day of the month
+    ("Sunday", "%A"),  # Full weekday name
+    ("Sun", "%a"),  # Abbreviated weekday name
 
-    # 2. Date only (YYYY-MM-DD)
-    ("2005-07-04", "%Y-%m-%d"),
+    # Time (hour, minute, second)
+    ("13", "%H"),  # 24-hour format hour
+    ("01", "%I"),  # 12-hour format hour
+    ("12", "%M"),  # Minutes
+    ("11", "%S"),  # Seconds
+    ("PM", "%p"),  # AM/PM marker
 
-    # 3. Time only (HH:MM:SS)
-    ("13:08:09", "%H:%M:%S"),
+    # Microseconds
+    (".000000", ".%f"),  # Fractional seconds
 
-    # 4. Month name, Day, Year (Month DD, YYYY)
-    ("July 04, 2005", "%B %d, %Y"),
-
-    # 5. Abbreviated Month and Day (Mon DD, YYYY)
-    ("Jul 04, 2005", "%b %d, %Y"),
-
-    # 6. Year with last 2 digits (YY-MM-DD)
-    ("05-07-04", "%y-%m-%d"),
-
-    # 7. Full weekday name (Weekday, Month DD, YYYY)
-    ("Monday, July 04, 2005", "%A, %B %d, %Y"),
-
-    # 8. Abbreviated weekday name (AbbrWeekday, Month DD, YYYY)
-    ("Mon, Jul 04, 2005", "%a, %b %d, %Y"),
-
-    # 9. Day of Year (YYYY-DDD)
-    ("2005-185", "%Y-%j"),
-
-    # 10. Day and 12-hour clock with period (HH:MM:SS AM/PM)
-    ("01:08:09 PM", "%I:%M:%S %p"),
-
-    # 11. Packed Date and Time without separators (YYYYMMDDHHMMSS)
-    ("20050704130809", "%Y%m%d%H%M%S"),
-
-    # 12. Packed Date only without separators (YYYYMMDD)
-    ("20050704", "%Y%m%d"),
-
-    # 13. Packed Time only without separators (HHMMSS)
-    ("130809", "%H%M%S"),
-
-
-
-    # 16. Simple fractional seconds (HH:MM:SS.mmm)
-    ("13:08:09.000000", "%H:%M:%S.%f"),
-
-    # 17. Literals like "at" with time (YYYY-MM-DD at HH:MM:SS)
-    ("2005-07-04 at 13:08:09", "%Y-%m-%d at %H:%M:%S"),
-
-    # 18. Literal text (e.g., "Time is 13:08:09")
-    ("Time is 13:08:09", "Time is %H:%M:%S"),
-
-    # 19. Combining textual month and day (Month DD HH:MM)
-    ("July 04 13:08", "%B %d %H:%M"),
-
-    # 20. Packed ISO DateTime with "T" separator (YYYYMMDDTHHMMSS)
-    ("20050704T130809", "%Y%m%dT%H%M%S"),
-    # 1. Packed Date Only (YYYYMMDD)
-    ("20050704", "%Y%m%d"),
-
-    # 2. Packed Date (YYMMDD)
-    ("050704", "%y%m%d"),
-
-    # 3. Packed Date (MMDDYYYY)
-    ("07042005", "%m%d%Y"),
-
-    # 4. Packed Time Only (HHMMSS)
-    ("130809", "%H%M%S"),
-
-    # 5. Packed Time with Hour and Minute (HHMM)
-    ("1308", "%H%M"),
-
-    # 6. Packed 12-Hour Clock With AM/PM (HHMMPM/AM)
-    ("010809PM", "%I%M%S%p"),
-
-    # 7. Packed Date and Time (YYYYMMDDHHMMSS)
-    ("20050704130809", "%Y%m%d%H%M%S"),
-
-    # 8. Packed Date and Time (YYMMDDHHMMSS)
-    ("050704130809", "%y%m%d%H%M%S"),
-
-    # 9. Packed Date and Time, Month First (MMDDYYYYHHMMSS)
-    ("07042005130809", "%m%d%Y%H%M%S"),
-
-    # 10. Packed ISO DateTime with "T" Separator (YYYYMMDDTHHMMSS)
-    ("20050704T130809", "%Y%m%dT%H%M%S"),
-
-    # 11. Packed ISO DateTime with "T" Separator (YYMMDDTHHMMSS)
-    ("050704T130809", "%y%m%dT%H%M%S"),
-
-    # 12. Packed Date and Day of Year (YYYYDDD)
-    ("2005185", "%Y%j"),
-
-    # 13. Packed Date and Day of Year (YYDDD)
-    ("05185", "%y%j"),
-
-    # 14. Packed Week-Based Date (Year + Week + Day) (YYYYWWDD)
-    ("20052704", "%Y%W%d"),
-
-    # 15. Packed Week-Based Date (Year + Week# + Day) (YYWWD)
-    ("052601", "%y%U%I"),
-
-    # 16. Packed Year and Day of Year Representation (YYYYDDD)
-    ("2005185", "%Y%j"),  # Day 185 of the year
-
-    # 17. Packed Date Only with Abbreviated Year (YYMMDD)
-    ("050704", "%y%m%d"),
-
-    # 18. Packed Hour and Minute Only (HMM)
-    ("0108", "%I%M"),  # Single digits for hour and minute
-    ("1308", "%H%M"),  # Single digits for hour and minute
-
-    # 19. Packed Time with Fractional Seconds (HHMMSS.mmm)
-    ("130809.000000", "%H%M%S.%f"),
-
-    # 20. Packed Date and Time with Fractional Seconds (YYYYMMDDHHMMSS.mmm)
-    ("20050704130809.000000", "%Y%m%d%H%M%S.%f"),
-
+    # Week numbers
+    ("43", "%W"),  # Week of year (starting with Sunday)
+    ("44", "%U"),  # Week of year (starting with Monday)
 ])
 def test_transform_format(input_format, expected_output):
     actual_output = transform_format(input_format)
     assert actual_output == expected_output
-    # Round-trip test: use the format string to format the canonical_date
-    formatted_date = CANONICAL.strftime(actual_output)
 
-    # Compare the formatted string with the original input
+    # Round-trip: format the CANONICAL date using the resulting format
+    formatted_date = CANONICAL.strftime(actual_output)
+    assert formatted_date == input_format
+
+@pytest.mark.parametrize("input_format, expected_format", [
+
+    # Week-based formats
+    ("2004-W43-0", "%Y-W%W-%w"),  # ISO week-based format (Start Sunday 0-6 )
+    ("2004-W44-7", "%Y-W%U-%u"),  # ISO week-based format (Start Monday 1-7 )
+
+    # US-style date formats
+    ("10-31-2004 13:12:11", "%m-%d-%Y %H:%M:%S"),  # Month-Day-Year + 24-hour time
+    ("10/31/2004 01:12:11 PM", "%m/%d/%Y %I:%M:%S %p"),  # Month/Day/Year + 12-hour time with AM/PM
+
+    # ISO-8601 full date and time
+    ("2004-10-31 13:12:11", "%Y-%m-%d %H:%M:%S"),
+    ("2004-10-31T13:12:11", "%Y-%m-%dT%H:%M:%S"),  # ISO format with 'T' separator
+
+    # European-style date formats
+    ("31/10/2004 13:12:11", "%d/%m/%Y %H:%M:%S"),  # Day/Month/Year + 24-hour time
+    ("31-10-2004 01:12:11 PM", "%d-%m-%Y %I:%M:%S %p"),  # Day-Month-Year + 12-hour time with AM/PM
+
+    # Long-form formats
+    ("Sunday, October 31, 2004 13:12:11", "%A, %B %d, %Y %H:%M:%S"),  # Full weekday and month names
+    ("Sun, Oct 31, 2004 01:12:11 PM", "%a, %b %d, %Y %I:%M:%S %p"),  # Abbreviated weekday and month names
+
+    # Date only
+    ("2004-10-31", "%Y-%m-%d"),  # Standard ISO-8601 date
+    ("31/10/2004", "%d/%m/%Y"),  # European-style date
+
+    # Time only
+    ("13:12:11", "%H:%M:%S"),  # 24-hour time
+    ("01:12:11 PM", "%I:%M:%S %p"),  # 12-hour time with AM/PM
+
+])
+def test_transform_format_full_dates(input_format, expected_format):
+    actual_format = transform_format(input_format)
+    formatted_date = CANONICAL.strftime(actual_format)
+
+    assert actual_format == expected_format
+
+    # Round-trip: format the CANONICAL date using the resulting format
     assert formatted_date == input_format
 
 
-# Test cases for invalid inputs (containing timezones or offsets)
-@pytest.mark.parametrize("invalid_format,expected_message", [
-    # Cases with +/-dddd offsets
-    ("2005-07-04 13:08+1200", "contains unsupported +/-dddd patterns"),  # Positive offset
-    ("13:08-0930", "contains unsupported +/-dddd patterns"),  # Negative offset
-    ("Schedule at 20050704+0800", "contains unsupported +/-dddd patterns"),  # Offset with packed date
-    ("YYYY-MM-DDTHH:MM:SS-0500", "contains unsupported +/-dddd patterns"),  # ISO format with offset
+# List of test cases with invalid date strings
+@pytest.mark.parametrize("invalid_date_string", [
+    # Cases where the timezone doesn't start with " +" or " -"
+    "2004-10-31T13:12:11 +0530",  # Missing leading space before timezone
+    "2004-10-31T13:12:11 -0800",  # Missing leading space before timezone
+
     # Cases with invalid timezone abbreviations
-    ("The time is 13:08 PST", "contains unsupported timezone abbreviation 'PST'"),  # PST abbreviation
-    ("Event starts at 15:00 EST", "contains unsupported timezone abbreviation 'EST'"),  # EST abbreviation
-    ("Date: 2005-07-04 CDT", "contains unsupported timezone abbreviation 'CDT'"),  # CDT abbreviation
-    ("Midnight at 00:00 MST", "contains unsupported timezone abbreviation 'MST'"),  # MST abbreviation
-    ("2005-07-04 HST", "contains unsupported timezone abbreviation 'HST'"),  # HST abbreviation
-    ("Start 08:00 PDT", "contains unsupported timezone abbreviation 'PDT'"),  # PDT abbreviation
+    "2004-10-31T13:12:11 PST",  # Unsupported abbreviation (PST)
+    "2004-10-31T13:12:11 EST",  # Unsupported abbreviation (EST)
+    "2004-10-31T13:12:11 CDT",  # Unsupported abbreviation (CDT)
+    "2004-10-31T13:12:11 GMT",  # Unsupported abbreviation (GMT)
+
+    # Cases with both invalid patterns and abbreviations
+    "2004-10-31T13:12:11 -0530",  # No "+" or "-" for timezone offset
+    "2004-10-31T13:12:11 +PDT",  # Leading space but invalid timezone abbreviation (PDT)
 ])
-def test_is_zone_free_invalid_cases(invalid_format, expected_message):
-    # Ensure the function raises ValueError for invalid formats
+def test_is_zone_free_invalid_cases(invalid_date_string):
     with pytest.raises(ValueError):
-        is_zone_free(invalid_format)
+        is_zone_free(invalid_date_string)  # Function to validate format
