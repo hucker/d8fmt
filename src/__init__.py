@@ -13,8 +13,8 @@ from .d8fmt import (
     CANONICAL,
     DATETIME_LOOKUP_TABLE,
     is_zone_free,
-    snap_fmt,
-    datetime_snap,
+    ez_format,
+    datetime_ez,
 )
 
 # Define the public API with __all__
@@ -23,6 +23,6 @@ __all__ = [
     "CANONICAL",
     "DATETIME_LOOKUP_TABLE",
     "is_zone_free",
-    "snap_fmt",
-    "datetime_snap",
+    "ez_format",
+    "datetime_ez",
 ]

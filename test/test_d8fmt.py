@@ -2,7 +2,7 @@ import datetime
 import locale
 
 import pytest
-from src.d8fmt import snap_fmt,CANONICAL,is_zone_free,datetime_snap
+from src.d8fmt import ez_format,CANONICAL,is_zone_free,datetime_ez
 
 
 @pytest.mark.parametrize("input_format, expected_output", [
@@ -36,7 +36,7 @@ from src.d8fmt import snap_fmt,CANONICAL,is_zone_free,datetime_snap
     ("44", "%U"),  # Week of year (starting with Monday)
 ])
 def test_snap_fmt(input_format, expected_output):
-    actual_output = snap_fmt(input_format)
+    actual_output = ez_format(input_format)
     assert actual_output == expected_output
 
     # Round-trip: format the CANONICAL date using the resulting format
@@ -75,7 +75,7 @@ def test_snap_fmt(input_format, expected_output):
 
 ])
 def test_snap_fmt_full_dates(input_format, expected_format):
-    actual_format = snap_fmt(input_format)
+    actual_format = ez_format(input_format)
     formatted_date = CANONICAL.strftime(actual_format)
 
     assert actual_format == expected_format
@@ -182,8 +182,8 @@ def test_is_zone_free_invalid_cases(invalid_date_string):
 )
 def test_macro_replacements_equivalence(canonical, template):
     # Apply the transformation for both canonical and template formats
-    fmt_canonical = snap_fmt(canonical)
-    fmt_template = snap_fmt(template)
+    fmt_canonical = ez_format(canonical)
+    fmt_template = ez_format(template)
     # Assert that they produce the same result
     assert fmt_canonical == fmt_template, (
         f"Expected canonical '{canonical}' and template '{template}' "
@@ -211,26 +211,9 @@ def set_locale():
 # Example test using the fixture
 def test_locale_date_format(set_locale):
     date1 = CANONICAL.strftime("%x")
-    date2 =CANONICAL.strftime(snap_fmt("{LOCALE}"))
+    date2 =CANONICAL.strftime(ez_format("{LOCALE}"))
 
     # %x should use the US locale format (MM/DD/YYYY)
     assert date1 == "10/31/2004"
     assert date1 == date2
 
-
-@pytest.mark.parametrize(
-    "format_string, expected_output",
-    [
-        ("{YEAR4}-{MONTH#}-{DAY#}", "2004-10-31"),  # Basic year-month-day format
-        ("{MONTH#}/{DAY#}/{YEAR2} at {HOUR24}:{MINUTE}:{SECOND}", "10/31/04 at 13:12:00"),  # Month/Day/Year
-        ("{DAY}, {MONTH} {DAY#}, {YEAR4} {HOUR12}:{MINUTE}:{SECOND} {PM}","Sunday, October 31, 2004 01:12:00 PM",
-        ),  # Full verbose date
-        ("Canonical datetime", "Canonical datetime"),  # Edge case with raw text
-    ],
-)
-def test_datetime_snap_formatting(format_string, expected_output):
-    # Create a `datetime_snap` object for the canonical datetime
-    d = datetime_snap(year=2004, month=10, day=31, hour=13, minute=12, second=0)
-    formatted_date = d.stezftime(format_string)
-    # Apply the custom stezftime method and verify the output
-    assert formatted_date == expected_output

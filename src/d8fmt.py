@@ -143,9 +143,9 @@ def is_zone_free(fmt: str):
     return True
 
 
-def snap_fmt(fmt: str,
-             macros: dict[str, str] | None = None,
-             dt_replacements: [str, str] = None) -> str:
+def ez_format(fmt: str,
+              macros: dict[str, str] | None = None,
+              replacements: [str, str] = None) -> str:
     """
     Formats a string by replacing placeholder macros with their corresponding values
     and applying additional datetime-based replacements.
@@ -164,12 +164,15 @@ def snap_fmt(fmt: str,
         macros (dict[str, str] | None, optional):
             A dictionary where keys represent macro placeholders (e.g., "{HOUR12}")
             and values represent their corresponding format tokens. If not provided,
-            a default macro lookup table (`MACRO_LOOKUP_TABLE`) is used.
+            a default macro lookup table (`MACRO_LOOKUP_TABLE`) is used. The python
+            str.format() syntax is used to format the string.
 
-        dt_replacements ([str, str], optional):
-            A dictionary of additional replacements for datetime format-specific
+        replacements ([str, str], optional):
+            A dictionary of additional canonical replacements for datetime format-specific
             placeholders (e.g., "%H", "%M"). If not provided, a default datetime
-            lookup table (`DATETIME_LOOKUP_TABLE`) is used.
+            lookup table (`DATETIME_LOOKUP_TABLE`) is used. The canonical instant is
+            October 31, 2004 on a Sunday, at 13:12:11.000000. The weeks are 44 and 43.
+            The day of year is 305. The days of the week are 0 and 7 respectively.
 
     Returns:
         str:
@@ -181,16 +184,16 @@ def snap_fmt(fmt: str,
                     macros or formatting tokens not handled by the mappings.
 
     Examples:
-        >>> snap_fmt("The time is {HOUR12}:{MINUTE} {AM}.",
+        >>> ez_format("The time is {HOUR12}:{MINUTE} {AM}.",
                      macros={"HOUR12": "%I", "MINUTE": "%M", "AM": "%p"})
         'The time is %I:%M %p.'
 
-        >>> snap_fmt("{YEAR4}-{MONTH#}-{DAY#}",
+        >>> ez_format("{YEAR4}-{MONTH#}-{DAY#}",
                      macros={"YEAR4": "%Y", "MONTH#": "%m", "DAY#": "%d"})
         '%Y-%m-%d'
 
         # With datetime replacements
-        >>> snap_fmt("Today is {DAY}, {MONTH} {DAY#}, {YEAR4}.",
+        >>> ez_format("Today is {DAY}, {MONTH} {DAY#}, {YEAR4}.",
                      macros={"DAY": "%A", "MONTH": "%B", "DAY#": "%d", "YEAR4": "%Y"},
                      dt_replacements={"%A": "Monday", "%B": "October", "%d": "09", "%Y": "2023"})
         'Today is Monday, October 09, 2023.'
@@ -203,26 +206,103 @@ def snap_fmt(fmt: str,
     """
 
     macros = macros or MACRO_LOOKUP_TABLE
-    dt_replacements = dt_replacements or DATETIME_LOOKUP_TABLE
+    replacements = replacements or DATETIME_LOOKUP_TABLE
 
     is_zone_free(fmt)
 
-    # Use the .format to lookup {xxx} macros and replace them with format tokens.
+    # Use the .format to map all macros such as {DAY} and {MONTH} using format
     fmt = fmt.format(**macros)
 
-    # These need to use the slow way
-    for key, value in macros.items():
-        fmt = fmt.replace(key, value)
-
     # Perform replacements using the mapping
-    for key, value in dt_replacements.items():
+    for key, value in replacements.items():
         fmt = fmt.replace(key, value)
 
     return fmt
 
 
-class datetime_snap(dt.datetime):
-    def stezftime(self, fmt: str) -> str:
+class datetime_ez(dt.datetime):
+    def __new__(cls, *args, dt=None, **kwargs):
+        """
+            Create a new instance of the `datetime_ez` class.
+
+            This method overrides the standard `__new__` to provide additional functionality for creating an
+            instance of `datetime_ez` from an existing `datetime` object using the `dt` parameter.
+            If `dt` is provided, its attributes (such as `year`, `month`, `day`, etc.) are extracted and used to
+            initialize the new instance. If `dt` is not provided, the method falls back to behaving as a standard
+            `datetime` constructor and accepts the usual positional and keyword arguments (e.g., `year`, `month`,
+            `day`, etc.).
+
+            +----------------+------------------+------------------+
+            | Placeholder    | Canonical Value | Macro            |
+            +----------------+------------------+------------------+
+            | %S             | 11              | {SECOND}         |
+            | %M             | 12              | {MINUTE}         |
+            | %H             | 13              | {HOUR24}         |
+            | %I             | 01              | {HOUR12}         |
+            | %d             | 31              | {DAY#}           |
+            | %m             | 10              | {MONTH#}         |
+            | %B             | October         | {MONTH}          |
+            | %b             | Oct             | {MONTH3}         |
+            | %Y             | 2004            | {YEAR4}          |
+            | %y             | 04              | {YEAR2}          |
+            | %A             | Sunday          | {DAY}            |
+            | %a             | Sun             | {DAY3}           |
+            | %w             | 0               | {WDAY#}          |
+            | %u             | 7               | {WDAY#ISO}       |
+            | %j             | 305             | {DOY}            |
+            | %U             | 44              | {WOY}            |
+            | %W             | 43              | {WOYISO}         |
+            | %p             | AM/PM           | {AM}/{PM}        |
+            | %Z             | (Timezone)      | {TZ}             |
+            | %z             |                 | {UTCOFF}         |
+            | %x             |                 | {LOCALE}         |
+            | %f             | 000000          | {MICROSEC}       |
+
+
+            ### Parameters:
+            - `dt` (datetime, optional): An existing `datetime` object. If provided, the new `datetime_ez`
+              object will be created using its attributes. Defaults to `None`.
+            - `*args`: Positional arguments for creating a standard `datetime` object (used if `dt` is not provided).
+            - `**kwargs`: Keyword arguments for creating a standard `datetime` object (used if `dt` is not provided).
+
+            ### Returns:
+            - `datetime_ez`: A new instance of the `datetime_ez` class, either initialized from the `dt` object
+              or created using the provided positional and keyword arguments.
+
+            ### Example Usage:
+            **Create from a standard constructor:**
+            ```python
+            dt_ez = datetime_ez(2023, 10, 20, 15, 30, 45)
+            print(dt_ez)  # 2023-10-20 15:30:45
+            ```
+
+            **Create from an existing datetime object:**
+            ```python
+            import datetime
+            existing_dt = datetime.datetime(2023, 10, 20, 15, 30, 45)
+            cloned_dt_ez = datetime_ez(dt=existing_dt)
+            print(cloned_dt_ez)  # 2023-10-20 15:30:45
+            ```
+    """
+        if dt:
+            # Create new instance using the provided datetime object
+            return super().__new__(
+                cls,
+                dt.year,
+                dt.month,
+                dt.day,
+                dt.hour,
+                dt.minute,
+                dt.second,
+                dt.microsecond,
+                dt.tzinfo,  # Keep timezone if present
+            )
+        else:
+            # Create new instance using regular datetime constructor
+            return super().__new__(cls, *args, **kwargs)
+
+
+    def ezftime(self, fmt: str) -> str:
         """
         Format a datetime object into a custom string using an enhanced set of macros for
         datetime components.
@@ -235,7 +315,7 @@ class datetime_snap(dt.datetime):
           avoid conflicts where text resembles the placeholders.
 
         **Examples:**
-        Quickly create beautifully formatted datetime strings with intuitive macros:
+        Quickly create formatted datetime strings with intuitive macros:
         - `"Today is {DAY}, {MONTH} {DAY#}, {YEAR4} at {HOUR12}:{MINUTE}:{SECOND} {AM}."`
           → `Sunday, October 31, 2004 at 01:12:11 PM`
 
@@ -301,20 +381,20 @@ class datetime_snap(dt.datetime):
 
         Examples:
         ```python
-        snap = datetime_snap(2004, 10, 31, 13, 12, 11)
+        snap = datetime_ez(2004, 10, 31, 13, 12, 11)
 
         # Example with macros
-        snap.stezftime("Today is {DAY}, {MONTH} {DAY#}, {YEAR4} at {HOUR12}:{MINUTE}:{SECOND} {AM}.")
+        snap.ezftime("Today is {DAY}, {MONTH} {DAY#}, {YEAR4} at {HOUR12}:{MINUTE}:{SECOND} {AM}.")
         # Output: "Today is Sunday, October 31, 2004 at 01:12:11 PM."
 
         # Traditional datetime formatting (no macros)
-        snap.stezftime("%A, %B %d, %Y %H:%M:%S")
+        snap.ezftime("%A, %B %d, %Y %H:%M:%S")
         # Output: "Sunday, October 31, 2004 13:12:11."
 
         # Mixing macros and datetime tokens (Not that you should do this)
-        snap.stezftime("{YEAR4}-{MONTH#}-{DAY#} %H:%M")
+        snap.ezftime("{YEAR4}-{MONTH#}-{DAY#} %H:%M")
         # Output: "2004-10-31 13:12"
         ```
         """
-        return self.strftime(snap_fmt(fmt))
+        return self.strftime(ez_format(fmt))
 
