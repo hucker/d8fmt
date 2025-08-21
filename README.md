@@ -178,6 +178,56 @@ is_zone_free("2004-10-31T13:12:11 +0530")  # Raises ValueError
 
 ---
 
+## CLI
+
+A command line interface is available for test purposes.  It is very similar to the date command on
+Mac/PC/Linux, but it also gives you a way to interactively test yur format strings.
+
+```shell
+
+(d8fmt) chuck@Chucks-Mac-mini src % python -m d8fmt --help
+Format a string using ezftime format specifiers and return appropriate exit codes.
+
+positional arguments:
+  format_string         The format string to use, with ezftime placeholders (e.g., '{HOUR12}:{MINUTE} {AM}'). If not provided, a default format will be used.
+
+options:
+  -h, --help            show this help message and exit
+  -a, --all             Use a format string that shows all replacements
+  -c, --canonical       Use the canonical datetime reference (October 31, 2004 13:12:11.000000) for formatting. If not provided, the current datetime is used.
+  -o, --print-original  Print the original format string provided as input.
+  -t, --print-tokenized
+                        Print the tokenized string after macro substitutions.
+  -v, --verbose         Print everithing available for debugging purposes.
+
+
+(d8fmt) chuck@Chucks-Mac-mini src % python -m d8fmt       
+Thu Aug 21 11:38:02
+
+(d8fmt) chuck@Chucks-Mac-mini src % python -m d8fmt -c
+Sun Oct 31 13:12:11
+
+(d8fmt) chuck@Chucks-Mac-mini src % python -m d8fmt -a
+day=Thursday Thu 21 mon=August Aug 08 y=25 2025 hr=11AM/11 min=38 s=17.912408 DOY=233 WeekOfYear=33 WeakOfYearIso=33 WDAY#=4 WDAY#ISO=4 LOCALE=08/21/25
+
+
+(d8fmt) chuck@Chucks-Mac-mini src % python -m d8fmt -v
+Original Format String:
+{DAY3} {MONTH3} {DAY#} {HOUR24}:{MINUTE}:{SECOND}
+
+Tokenized String (with macros replaced):
+%a %b %d %H:%M:%S
+
+Formatted String (with datetime values applied):
+Thu Aug 21 11:38:38
+
+
+(d8fmt) chuck@Chucks-Mac-mini src % python -m d8fmt "Todays Date Time: {MONTH#}/{DAY#}/{YEAR4} {HOUR24}:{MINUTE}:{SECOND}"
+Todays Date Time: 08/21/2025 11:43:53
+
+
+````
+
 ## Testing
 
 Run tests to confirm functionality and validation.  
@@ -189,11 +239,11 @@ pytest test_d8fmt.py
 Example Output:
 ```plaintext
 ========================== test session starts =========================
-collected 28 items
+collected 100 items
 
 test_d8fmt.py ........................                                    [100%]
 
-=========================== 14 passed in 0.02s =========================
+=========================== 100 passed in 0.11s =========================
 ```
 
 ---

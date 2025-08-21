@@ -41,7 +41,8 @@ Error Handling:
 
 import datetime as dt
 import re
-
+import argparse
+import sys
 
 
 CANONICAL: dt.datetime = dt.datetime(
@@ -398,3 +399,106 @@ class datetime_ez(dt.datetime):
         """
         return self.strftime(ez_format(fmt))
 
+def run_cli():
+    # Import here ONLY if we are running from command line.
+
+    parser = argparse.ArgumentParser(description="Datetime formatter CLI")
+
+    # Create the argument parser
+    parser = argparse.ArgumentParser(
+        description="Format a string using ezftime format specifiers and return appropriate exit codes."
+    )
+    parser.add_argument(
+        "format_string",
+        nargs="?",
+        default="{DAY3} {MONTH3} {DAY#} {HOUR24}:{MINUTE}:{SECOND}",
+        help=(
+            "The format string to use, with ezftime placeholders (e.g., '{HOUR12}:{MINUTE} {AM}')."
+            " If not provided, a default format will be used."
+        ),
+    )
+    parser.add_argument(
+        "-a", "--all",
+        action="store_true",
+        help=("Use a format string that shows all replacements"),
+    )
+    parser.add_argument(
+        "-c", "--canonical",
+        action="store_true",
+        help=(
+            "Use the canonical datetime reference (October 31, 2004 13:12:11.000000) "
+            "for formatting. If not provided, the current datetime is used."
+        ),
+    )
+    parser.add_argument(
+        "-o", "--print-original",
+        action="store_true",
+        help="Print the original format string provided as input.",
+    )
+    parser.add_argument(
+        "-t", "--print-tokenized",
+        action="store_true",
+        help="Print the tokenized string after macro substitutions.",
+    )
+    parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="Print everithing available for debugging purposes.",
+    )
+
+    try:
+        args = parser.parse_args()
+        if args.all:
+            args.format_string = "day={DAY} {DAY3} {DAY#} mon={MONTH} {MONTH3} {MONTH#} y={YEAR2} {YEAR4} " \
+                                 "hr={HOUR12}{PM}/{HOUR24} min={MINUTE} s={SECOND}.{MICROSEC} " \
+                                 "DOY={DOY} WeekOfYear={WOY} WeakOfYearIso={WOYISO} " \
+                                 "WDAY#={WDAY#} WDAY#ISO={WDAY#ISO} LOCALE={LOCALE}"
+
+        # Determine the datetime to use
+        if args.canonical:
+            user_date = dt.datetime(2004, 10, 31, 13, 12, 11, 0)
+        else:
+            user_date = dt.datetime.now()
+
+        # Tokenized format string (replace macros like {HOUR12} but leave datetime placeholders)
+        tokenized_format = ez_format(args.format_string)
+
+        # Final formatted string (apply formats)
+        formatted_string = datetime_ez.ezftime(user_date, args.format_string)
+
+        if args.verbose:
+            args.print_original = True
+            args.print_tokenized = True
+
+        # Output controlled by flags
+        if args.print_original:
+            if args.verbose:
+                print("Original Format String:")
+            print(args.format_string)
+
+        if args.print_tokenized:
+            if args.verbose:
+                print("\nTokenized String (with macros replaced):")
+            print(tokenized_format)
+
+        if args.verbose:
+            print("\nFormatted String (with datetime values applied):")
+        print(formatted_string)
+
+        # If everything ran successfully, exit with status 0
+        sys.exit(0)
+
+    except KeyError as e:
+        # If a macro is missing in the lookup table, handle gracefully
+        print(f"Error: Missing macro in the format string - {e}", file=sys.stderr)
+        sys.exit(1)  # Exit code 1 indicates general error
+
+    except Exception as e:
+        # Catch other unexpected errors
+        print(f"Unexpected error: {e}", file=sys.stderr)
+        sys.exit(2)  # Use a different exit code for unexpected failures
+
+
+if __name__ == "__main__": # pragma: no cover
+
+    run_cli()
