@@ -1,8 +1,10 @@
-import datetime
 import locale
+from importlib.metadata import PackageNotFoundError
+from unittest.mock import patch
 
 import pytest
-from src.d8fmt import ez_format,CANONICAL,is_zone_free,datetime_ez
+
+from src.d8fmt import CANONICAL_DATE, ez_format, is_zone_free
 
 
 @pytest.mark.parametrize("input_format, expected_output", [
@@ -39,9 +41,10 @@ def test_snap_fmt(input_format, expected_output):
     actual_output = ez_format(input_format)
     assert actual_output == expected_output
 
-    # Round-trip: format the CANONICAL date using the resulting format
-    formatted_date = CANONICAL.strftime(actual_output)
+    # Round-trip: format the CANONICAL_DATE date using the resulting format
+    formatted_date = CANONICAL_DATE.strftime(actual_output)
     assert formatted_date == input_format
+
 
 @pytest.mark.parametrize("input_format, expected_format", [
 
@@ -76,11 +79,11 @@ def test_snap_fmt(input_format, expected_output):
 ])
 def test_snap_fmt_full_dates(input_format, expected_format):
     actual_format = ez_format(input_format)
-    formatted_date = CANONICAL.strftime(actual_format)
+    formatted_date = CANONICAL_DATE.strftime(actual_format)
 
     assert actual_format == expected_format
 
-    # Round-trip: format the CANONICAL date using the resulting format
+    # Round-trip: format the CANONICAL_DATE date using the resulting format
     assert formatted_date == input_format
 
 
@@ -104,6 +107,7 @@ def test_is_zone_free_invalid_cases(invalid_date_string):
     with pytest.raises(ValueError):
         is_zone_free(invalid_date_string)  # Function to validate format
 
+
 @pytest.mark.parametrize("canonical, template", [
     # Basic full date formats
     ("2004-10-31", "{YEAR4}-{MONTH#}-{DAY#}"),  # Basic ISO full date
@@ -122,7 +126,8 @@ def test_is_zone_free_invalid_cases(invalid_date_string):
 
     # Combined date and time formats
     ("2004-10-31 13:12:11", "{YEAR4}-{MONTH#}-{DAY#} {HOUR24}:{MINUTE}:{SECOND}"),  # ISO 8601 with 24-hour time
-    ("10/31/2004 01:12:11 PM", "{MONTH#}/{DAY#}/{YEAR4} {HOUR12}:{MINUTE}:{SECOND} {PM}"),  # US format with 12-hour time
+    ("10/31/2004 01:12:11 PM", "{MONTH#}/{DAY#}/{YEAR4} {HOUR12}:{MINUTE}:{SECOND} {PM}"),
+    # US format with 12-hour time
     ("31-10-2004 13:12", "{DAY#}-{MONTH#}-{YEAR4} {HOUR24}:{MINUTE}"),  # European date with truncated time
     ("31 October 2004 01:12 PM", "{DAY#} {MONTH} {YEAR4} {HOUR12}:{MINUTE} {PM}"),  # Full month with 12-hour time
 
@@ -179,7 +184,7 @@ def test_is_zone_free_invalid_cases(invalid_date_string):
     ("31/10/04", "{DAY#}/{MONTH#}/{YEAR2}"),  # European style with two-digit year
     ("10/31/04", "{MONTH#}/{DAY#}/{YEAR2}"),  # US style with two-digit year
 ]
-)
+                         )
 def test_macro_replacements_equivalence(canonical, template):
     # Apply the transformation for both canonical and template formats
     fmt_canonical = ez_format(canonical)
@@ -189,6 +194,7 @@ def test_macro_replacements_equivalence(canonical, template):
         f"Expected canonical '{canonical}' and template '{template}' "
         f"to produce the same format, but got '{fmt_canonical}' and '{fmt_template}'"
     )
+
 
 # Fixture to set and restore locale
 @pytest.fixture
@@ -210,10 +216,11 @@ def set_locale():
 
 # Example test using the fixture
 def test_locale_date_format(set_locale):
-    date1 = CANONICAL.strftime("%x")
-    date2 =CANONICAL.strftime(ez_format("{LOCALE}"))
+    date1 = CANONICAL_DATE.strftime("%x")
+    date2 = CANONICAL_DATE.strftime(ez_format("{LOCALE}"))
 
     # %x should use the US locale format (MM/DD/YYYY)
     assert date1 == "10/31/2004"
     assert date1 == date2
+
 

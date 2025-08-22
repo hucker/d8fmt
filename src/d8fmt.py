@@ -1,146 +1,60 @@
 """
-This module converts a canonical datetime example into a deterministic format string
-based on standard `strftime`/`strptime` directives, while imposing strict rules
-for tokens, literals, fractional seconds, and time zones.
+     d8fmt.py
 
-Canonical Instant (Fixed):
-  - `2004-10-31 13:12:11` is used as a reference to validate and transform formats.
+     A module for handling advanced datetime formatting and parsing operations.
 
-Rules:
-  - Only tokens present in the canonical instant are allowed for formatting.
-  - Literals in the format strings are preserved as is.
-  - Time zones are strictly validated:
-  - Timezone abbreviations (e.g., PST, GMT) are explicitly prohibited.
-  - Fractional seconds:
-    - Always render fractional seconds with zero padding.
-  - The output format uses cross-platform `strftime`/`strptime` directives.
-  - Token replacement uses an ordered mapping to ensure correctness.
+     Primary Components:
+         Functions:
+             - is_zone_free: Determines if a datetime string lacks time zone data.
+             - ez_format: Formats datetime objects based on custom templates.
+             - run_cli: Command-line interface for using the datetime utilities.
 
-Functions:
-  - `is_zone_free(fmt: str) -> bool`:
-    Validates the absence of unsupported timezone formats, offsets, or abbreviations.
+         Class:
+             - datetime_ez: A specialized datetime class with extended functionality.
 
-  - `snap_fmt(fmt: str) -> str`:
-    Converts a format string using token replacement based on the canonical instant.
-    Enforces all rules, validates timezones, and maps tokens into corresponding strftime directives.
+     Usage:
+         - Import the module to use its utilities programmatically:
+             from d8fmt import ez_format, is_zone_free
+         - Execute the script to access the CLI:
+             python d8fmt.py --help
+     """
 
-Mapping Example:
-  - `"2004"` → `"%Y"`:  Year (4-digit)
-  - `"31"` → `"%d"`: Day of the month
-  - `"October"` → `"%B"`: Full month name
-  - `"13"` → `"%H"`: Hour (24-hour clock)
-  - `PM` -> '%p' AM/PM marker
-  - `".000000"` → `"%f"`: Microseconds
-  - `"0"` → `"%w"`: Day of the week (Sunday = 0, Saturday = 6 non-ISO)
-  - `"7"` → `"%u"`: Day of the week (ISO, Monday = 1, Sunday = 7)
-  - `"AM/PM"` → `"%p"`: AM/PM marker
 
-Error Handling:
-  - Raises a `ValueError` if invalid timezone formats or abbreviations are detected.
-"""
-
+import argparse
 import datetime as dt
 import re
-import argparse
 import sys
 
+from .constants import DATETIME_LOOKUP_TABLE, MACRO_LOOKUP_TABLE
 
-CANONICAL: dt.datetime = dt.datetime(
-    2004, 10, 31, 13, 12, 11,tzinfo=dt.timezone.utc
-)
-
-# Replacement mapping.  Note we take advantage of
-# the diction being order so as we iterate over these items
-# they are going in the order we specifiy
-MACRO_LOOKUP_TABLE = {
-    "HOUR12": "%I",
-    "HOUR24": "%H",
-    'DOY': "%j",
-    "YEAR2": "%y",
-    "YEAR4": "%Y",
-    "MONTH": "%B",
-    "MONTH3": "%b",
-    "MONTH#": "%m",
-    "DAY": "%A",
-    "DAY3": "%a",
-    "DAY#": "%d",
-    "HOUR": "%I",
-    "MINUTE": "%M",
-    "SECOND": "%S",
-    "MICROSEC": "%f",
-    "AM": "%p",
-    "PM": "%p",
-    "WOY": "%U",
-    "WOYISO": "%W",
-    "WDAY#ISO": "%u",
-    "WDAY#": "%w",
-    "TZ": "%Z",
-    "UTCOFF": "%z",
-    "LOCALE":"%x",
-}
-
-DATETIME_LOOKUP_TABLE = {
-    ".000000": ".%f",  # Microseconds (truncated example)
-    "2004": "%Y",  # Year (4-digit)
-    "305": "%j",  # Day of the year
-    "October": "%B",  # Full month name
-    "OCTOBER": "%B",  # Full month name
-    "October": "%B",  # Full month name
-    "october": "%B",  # Full month name
-    "Oct": "%b",  # Abbreviated month name
-    "OCT": "%b",  # Abbreviated month name
-    "oct": "%b",  # Abbreviated month name
-    "Sunday": "%A",  # Full weekday name
-    "SUNDAY": "%A",  # Full weekday name
-    "sunday": "%A",  # Full weekday name
-    "SUN": "%a",  # Abbreviated weekday name
-    "Sun": "%a",  # Abbreviated weekday name
-    "sun": "%a",  # Abbreviated weekday name
-    "01": "%I",  # Hour (12-hour clock)
-    "04": "%y",  # Year (last 2 digits)
-    "10": "%m",  # Month number
-    "11": "%S",  # Seconds
-    "12": "%M",  # Minute
-    "13": "%H",  # Hour (24-hour clock)
-    "31": "%d",  # Day of the month
-    "44": "%U",  # Week of the year (starting with Sunday)
-    "43": "%W",  # Week of the year (starting with Monday)
-    "AM": "%p",  # AM/PM marker
-    "PM": "%p",  # AM/PM marker
-    "am": "%p",  # AM/PM marker
-    "pm": "%p",  # AM/PM marker
-    # ".000000": ".%f",  # Microseconds (truncated example)
-    # ".00000": ".%f" , # Microseconds (truncated example)
-    # ".0000": ".%f",  # Microseconds (truncated example)
-    # ".000": ".%f",  # Microseconds (truncated example)
-    # ".00": ".%f",  # Microseconds (truncated example)
-    # ".0": ".%f",  # Microseconds (truncated example)
-
-    # These will be problematic
-    "0": "%w",  # 0th day of week ( 0-6)
-    "7": "%u",  # 7th day of week (ISO 1-7)
-}
 
 def is_zone_free(fmt: str):
     """
-    This is a placeholder. It will be replaced when timezones are supported.
+    Checks if the given datetime string is timezone-agnostic.
 
-    Throws exception if timezone formatting is detected.
+    Parameters:
+       datetime_string (str): The datetime string to check.
+
+    Returns:
+       bool: True if the datetime string does not contain timezone information, False otherwise.
+
     """
     # Regex to detect the pattern +/-dddd
     tz_offset_pattern = r" [+-]\d{4}"
     # List of invalid timezone strings
-    invalid_timezones = ["PST", "EST", "CST", "MST", "AST", "HST", "AKST", "PDT", "EDT", "CDT", "MDT", "ADT", "HADT",
-                         "AKDT","GMT"]
+    invalid_timezones = ["PST", "EST", "CST", "MST", "AST", "HST", "AKST", "PDT", "EDT",
+                         "CDT", "MDT", "ADT", "HADT", "AKDT", "GMT"]
 
     # Check for +/-dddd offset
     if re.search(tz_offset_pattern, fmt):
-        raise ValueError(f"Invalid format string: '{fmt}' contains unsupported +/-dddd patterns.")
+        msg = f"Invalid format string: '{fmt}' contains unsupported +/-dddd patterns."
+        raise ValueError(msg)
 
     # Check for invalid timezone abbreviations
     for tz in invalid_timezones:
         if tz in fmt:
-            raise ValueError(f"Invalid format string: '{fmt}' contains unsupported timezone abbreviation '{tz}'.")
+            msg = f"Invalid format string: '{fmt}' contains unsupported timezone '{tz}'."
+            raise ValueError(msg)
     return True
 
 
@@ -172,7 +86,7 @@ def ez_format(fmt: str,
             A dictionary of additional canonical replacements for datetime format-specific
             placeholders (e.g., "%H", "%M"). If not provided, a default datetime
             lookup table (`DATETIME_LOOKUP_TABLE`) is used. The canonical instant is
-            October 31, 2004 on a Sunday, at 13:12:11.000000. The weeks are 44 and 43.
+            October 31, 2004, on a Sunday, at 13:12:11.000000. The weeks are 44 and 43.
             The day of year is 305. The days of the week are 0 and 7 respectively.
 
     Returns:
@@ -222,16 +136,67 @@ def ez_format(fmt: str,
 
 
 class datetime_ez(dt.datetime):
-    def __new__(cls, *args, dt=None, **kwargs):
+    """
+    A subclass of `datetime.datetime` that provides enhanced functionality for human-readable and
+    deterministic formatting of datetime objects.
+
+    This class extends the standard `datetime` object by:
+    - Allowing initialization from an existing `datetime` object via the `dt_` parameter.
+    - Simplifying formatting with user-friendly macros through the `ezftime` method.
+
+    ### Initialization:
+    You can create a `datetime_ez` instance in two ways:
+    - By providing a standard `datetime` object using the `dt_` parameter.
+    - By using traditional positional and keyword arguments (e.g., `year`, `month`, `day`).
+
+    ### Features:
+    - Fully compatible with the base `datetime.datetime` methods and attributes.
+    - Adds `ezftime`, a powerful formatting method, that supports both standard `strftime` tokens
+      (e.g., `%Y`, `%m`, `%d`) and custom macros (e.g., `{HOUR12}`, `{MONTH#}`, `{DAY}`) as
+      well as canonical format replacements.
+
+    ### Parameters:
+    - `dt_` (datetime, optional): An existing `datetime` object. If provided, the new `datetime_ez`
+      object will clone its attributes. Defaults to `None`.
+    - `*args`: Positional arguments for creating `datetime` object (used if `dt_` is not provided).
+    - `**kwargs`: Keyword arguments for creating `datetime` object (used if `dt_` is not provided).
+
+    ### Example Usage:
+    #### Create from a standard constructor:
+    ```python
+    dt_ez = datetime_ez(2023, 10, 20, 15, 30, 45)
+    print(dt_ez)  # 2023-10-20 15:30:45
+    ```
+
+    #### Create from an existing `datetime` object:
+    ```python
+    import datetime
+    existing_dt = datetime.datetime(2023, 10, 20, 15, 30, 45)
+    cloned_dt_ez = datetime_ez(dt_=existing_dt)
+    print(cloned_dt_ez)  # 2023-10-20 15:30:45
+    ```
+
+    #### Use `ezftime` for formatting:
+    ```python
+    snap = datetime_ez(2004, 10, 31, 13, 12, 11)
+    output = snap.ezftime("Today is {DAY}, {MONTH} {DAY#}, {YEAR4} at {HOUR24}:{MINUTE}:{SECOND}.")
+    print(output)  # Today is Sunday, October 31, 2004, at 13:12:11.
+    ```
+
+    ### Returns:
+    - A `datetime_ez` object with enhanced functionality.
+    """
+
+    def __new__(cls, *args, dt_ :dt.datetime|None=None, **kwargs):
         """
             Create a new instance of the `datetime_ez` class.
 
-            This method overrides the standard `__new__` to provide additional functionality for creating an
+            Overrides the standard `__new__` to provide additional functionality for creating an
             instance of `datetime_ez` from an existing `datetime` object using the `dt` parameter.
-            If `dt` is provided, its attributes (such as `year`, `month`, `day`, etc.) are extracted and used to
-            initialize the new instance. If `dt` is not provided, the method falls back to behaving as a standard
-            `datetime` constructor and accepts the usual positional and keyword arguments (e.g., `year`, `month`,
-            `day`, etc.).
+            If `dt` is provided, its attributes (such as `year`, `month`, etc.) are extracted to
+            initialize the new instance. If `dt` isn't provided, the method behaves as a
+            standard `datetime` constructor and accepts the usual positional and keyword arguments
+            (e.g., `year`, `month`, `day`, etc.).
 
             +----------------+------------------+------------------+
             | Placeholder    | Canonical Value | Macro            |
@@ -259,16 +224,17 @@ class datetime_ez(dt.datetime):
             | %x             |                 | {LOCALE}         |
             | %f             | 000000          | {MICROSEC}       |
 
-
             ### Parameters:
-            - `dt` (datetime, optional): An existing `datetime` object. If provided, the new `datetime_ez`
-              object will be created using its attributes. Defaults to `None`.
-            - `*args`: Positional arguments for creating a standard `datetime` object (used if `dt` is not provided).
-            - `**kwargs`: Keyword arguments for creating a standard `datetime` object (used if `dt` is not provided).
+            - `dt` (datetime, optional): An existing `datetime` object. If provided, the new
+               `datetime_ez` object will be created using its attributes. Defaults to `None`.
+            - `*args`: Positional arguments for creating a standard `datetime` object
+              (used if `dt` is not provided).
+            - `**kwargs`: Keyword arguments for creating a standard `datetime` object (used
+              if `dt` is not provided).
 
             ### Returns:
-            - `datetime_ez`: A new instance of the `datetime_ez` class, either initialized from the `dt` object
-              or created using the provided positional and keyword arguments.
+            - `datetime_ez`: A new instance of the `datetime_ez` class, either initialized
+              from the `dt` object or created using the provided positional and keyword arguments.
 
             ### Example Usage:
             **Create from a standard constructor:**
@@ -284,129 +250,78 @@ class datetime_ez(dt.datetime):
             cloned_dt_ez = datetime_ez(dt=existing_dt)
             print(cloned_dt_ez)  # 2023-10-20 15:30:45
             ```
-    """
-        if dt:
+        """
+
+        if dt_:
             # Create new instance using the provided datetime object
             return super().__new__(
                 cls,
-                dt.year,
-                dt.month,
-                dt.day,
-                dt.hour,
-                dt.minute,
-                dt.second,
-                dt.microsecond,
-                dt.tzinfo,  # Keep timezone if present
+                dt_.year,
+                dt_.month,
+                dt_.day,
+                dt_.hour,
+                dt_.minute,
+                dt_.second,
+                dt_.microsecond,
+                dt_.tzinfo,  # Keep timezone if present
             )
-        else:
-            # Create new instance using regular datetime constructor
-            return super().__new__(cls, *args, **kwargs)
-
+        # Create new instance using regular datetime constructor
+        return super().__new__(cls, *args, **kwargs)
 
     def ezftime(self, fmt: str) -> str:
         """
-        Format a datetime object into a custom string using an enhanced set of macros for
-        datetime components.
+        Format a datetime object into a custom string using an enhanced set of macros
+        for datetime components.
 
         ### Key Features:
-        - You can use **standard Python datetime format strings** (e.g., `%Y`, `%m`, `%d`).
-        - Additional **macros** such as `{HOUR12}`, `{MONTH}`, `{DAY}` offer flexibility
-          and leverage a user-friendly style.
-        - You can mix arbitrary text with datetime parts to create custom formats, but
-          avoid conflicts where text resembles the placeholders.
-
-        **Examples:**
-        Quickly create formatted datetime strings with intuitive macros:
-        - `"Today is {DAY}, {MONTH} {DAY#}, {YEAR4} at {HOUR12}:{MINUTE}:{SECOND} {AM}."`
-          → `Sunday, October 31, 2004 at 01:12:11 PM`
-
-        - `"Date: {MONTH#}/{DAY#}/{YEAR4}, Time: {HOUR24}:{MINUTE}."`
-          → `Date: 10/31/2004, Time: 13:12`
-
-        - `"Day {DOY} of the year {YEAR4}, Week {WOY}."`
-          → `Day 305 of the year 2004, Week 44`
-
-
+        - Support for **standard Python datetime format strings** (e.g., `%Y`, `%m`, `%d`).
+        - Support for additional **macros** (e.g., `{HOUR12}`, `{MONTH}`).
+        - Mix macros and text for highly customized formats while avoiding conflicts.
 
         ### Example Placeholders and Mappings:
-        Here are some basic example mappings supported by this method:
-        - `{YEAR4}` → `2004`
-        - `{MONTH#}` → `10`
-        - `{DAY}` → `Sunday`
-        - `{HOUR24}` → `13`
-        - `{HOUR12}` → `01`
-        - `{SECOND}` → `11`
-        - `{MICROSEC}` → `000000`
-        - `{DOY}` → `305` (Day of the year)
-        - `{WOY}` → `44` (Week of the year starting Sunday)
-
-        ### Examples:
-        Use these format strings to generate desired outputs:
-        - `"Today is {DAY}, {MONTH} {DAY#}, {YEAR4} at {HOUR12}:{MINUTE}:{SECOND} {AM}."`
-          → `Sunday, October 31, 2004 at 01:12:11 PM`
-
-        - `"Date: {MONTH#}/{DAY#}/{YEAR4}, Time: {HOUR24}:{MINUTE}."`
-          → `10/31/2004, Time: 13:12.`
-
-        - `"Day {DOY} of the year {YEAR4}, Week {WOY}."`
-          → `Day 305 of the year 2004, Week 44.`
-
-        - `"Custom: <{YEAR4}-{MONTH#}-{DAY#} @ {HOUR24}:{MINUTE}>"`
-          → `<2004-10-31 @ 13:12>`
-
-        ### Supported Common Placeholders:
-        - `{YEAR4}`: Four-digit year (e.g., `2004`).
-        - `{YEAR2}`: Two-digit year (e.g., `04`).
-        - `{MONTH}`: Full month (e.g., `October`).
-        - `{MONTH3}`: Abbreviated month (e.g., `Oct`).
-        - `{MONTH#}`: Month as a two-digit number (e.g., `10`).
-        - `{DAY}`: Full day of the week (e.g., `Sunday`).
-        - `{DAY3}`: Abbreviated day of the week (e.g., `Sun`).
-        - `{DAY#}`: Day of the month as a two-digit number (e.g., `31`).
-        - `{HOUR24}`: Hour in 24-hour format (e.g., `13`).
-        - `{HOUR12}`: Hour in 12-hour format (e.g., `01`).
-        - `{MINUTE}`: Minutes (e.g., `12`).
-        - `{SECOND}`: Seconds (e.g., `11`).
-        - `{MICROSEC}`: Microseconds (e.g., `000000`).
-        - `{DOY}`: Day of the year (1-365 or 1-366 for leap years).
-        - `{WOY}`: Week of the year starting on Sunday.
-
-        ### Note to Users:
-        To avoid conflicts, use simple text that does not overlap with placeholders
-        (e.g., `{HOUR12}` or `%Y`). If you need to embed a datetime string into a
-        larger text block, it’s recommended to format your date string separately
-        before combining it with additional text.
+        - `{YEAR4}` → Four-digit year (e.g., `2004`).
+        - `{MONTH}` → Full month name (e.g., `October`).
+        - `{HOUR24}` → Hour in 24-hour clock notation (e.g., `13`).
+        ...
 
         Returns:
-            str: A fully formatted string containing the requested datetime.
+            str: A fully formatted string containing the requested datetime in the given format.
 
         Examples:
-        ```python
-        snap = datetime_ez(2004, 10, 31, 13, 12, 11)
+            >>> snap = datetime_ez(2004, 10, 31, 13, 12, 11)
 
-        # Example with macros
-        snap.ezftime("Today is {DAY}, {MONTH} {DAY#}, {YEAR4} at {HOUR12}:{MINUTE}:{SECOND} {AM}.")
-        # Output: "Today is Sunday, October 31, 2004 at 01:12:11 PM."
+            >>> snap.ezftime("{DAY}, {MONTH} {DAY#}, {YEAR4}, {HOUR12}:{MINUTE}:{SECOND} {AM}")
+            "Sunday, October 31, 2004,  01:12:11 PM"
 
-        # Traditional datetime formatting (no macros)
-        snap.ezftime("%A, %B %d, %Y %H:%M:%S")
-        # Output: "Sunday, October 31, 2004 13:12:11."
-
-        # Mixing macros and datetime tokens (Not that you should do this)
-        snap.ezftime("{YEAR4}-{MONTH#}-{DAY#} %H:%M")
-        # Output: "2004-10-31 13:12"
-        ```
+            >>> snap.ezftime("{YEAR4}-{MONTH#}-{DAY#} %H:%M")
+            "2004-10-31 13:12"
         """
         return self.strftime(ez_format(fmt))
 
-def run_cli():
-    # Import here ONLY if we are running from command line.
 
-    parser = argparse.ArgumentParser(description="Datetime formatter CLI")
+def make_d8fmt_parser() -> argparse.ArgumentParser:
+    """
+    Creates and returns an argument parser for the `d8fmt` command-line tool.
 
-    # Create the argument parser
+    The parser defines a set of command-line arguments for customizing the formatting
+    of datetime strings using `ezftime` specifiers. Users can specify format strings,
+    toggle verbose or debugging output, and choose between using the canonical reference
+    datetime or the current datetime.
+
+    Returns:
+        argparse.ArgumentParser: Configured argument parser.
+
+    Arguments:
+        - format_string: (optional) The format string containing `ezftime` placeholders.
+                         Defaults to `"{DAY3} {MONTH3} {DAY#} {HOUR24}:{MINUTE}:{SECOND}"`.
+        - -a / --all: Shows all replacement placeholders and their values in the output.
+        - -c / --canonical: Uses the canonical reference datetime for formatting.
+        - -o / --print-original: Prints the original input format string before formatting.
+        - -t / --print-tokenized: Outputs the intermediate tokenized format string.
+        - -v / --verbose: Enables verbose debugging, displaying additional information.
+    """
     parser = argparse.ArgumentParser(
-        description="Format a string using ezftime format specifiers and return appropriate exit codes."
+        description="Format a string using ezftime format specifiers."
     )
     parser.add_argument(
         "format_string",
@@ -443,15 +358,95 @@ def run_cli():
     parser.add_argument(
         "-v", "--verbose",
         action="store_true",
-        help="Print everithing available for debugging purposes.",
+        help="Print everything available for debugging purposes.",
     )
+
+    return parser
+
+
+def run_cli():
+    """
+    Entry point for the application when accessed via the command line.
+
+    This function provides a command-line interface (CLI) to format strings using the `ezftime`
+    format specifiers, which support both standard datetime placeholders and custom macros. Users
+    can specify a format string, apply verbose debugging flags, or use predefined options such as a
+    canonical date for demonstration.
+
+    ### CLI Arguments:
+    - `format_string` (positional, optional): The desired format string with `ezftime` placeholders.
+      Defaults to:
+      `{DAY3} {MONTH3} {DAY#} {HOUR24}:{MINUTE}:{SECOND}`
+
+      Example: `"{HOUR12}:{MINUTE} {AM}"` → Output: `"01:12 PM"`
+
+    - `-a / --all`: Displays all placeholders and their values in the output format string.
+    - `-c / --canonical`: Uses the canonical datetime reference (October 31, 2004 13:12:11.000000).
+      If omitted, the current date and time will be used.
+    - `-o / --print-original`: Prints the original format string provided by the user.
+    - `-t / --print-tokenized`: Prints the tokenized format string, where macros are replaced but no
+      datetime placeholders (like `%Y`) have been applied yet.
+    - `-v / --verbose`: Enables verbose output, showing all available debug information, including
+      the original format string, tokenized string, and final formatted output.
+
+    ### Behavior:
+    - If the `--canonical` flag is provided, the canonical datetime (`2004-10-31 13:12:11`) will be
+      used for formatting. Otherwise, the current system datetime is used.
+    - If `-a / --all` is specified, the format string is automatically replaced with one containing
+      all placeholders and their values for demonstration purposes.
+    - Errors are handled, with descriptive messages printed to `stderr`:
+        - `KeyError`: Missing macro in the format string.
+        - Any other unexpected errors result in a generic error message with an exit status `2`.
+
+    ### Returns:
+    - None; the program exits with an appropriate exit status:
+        - `0` on success.
+        - `1` for general errors (e.g., a missing macro).
+        - `2` for unexpected errors.
+
+    ### Example Usage:
+    #### Basic Usage:
+    ```bash
+    $ python d8fmt.py "{HOUR12}:{MINUTE} {AM}"
+    Output: 01:12 PM
+    ```
+
+    #### Show Verbose Output:
+    ```bash
+    $ python d8fmt.py -v "{DAY}, {MONTH} {DAY#}, {YEAR4} at {HOUR24}:{MINUTE}"
+    Original Format String:
+    {DAY}, {MONTH} {DAY#}, {YEAR4} at {HOUR24}:{MINUTE}
+
+    Tokenized String (with macros replaced):
+    %{A}, %{B} %{d}, %{Y} at %{H}:%{M}
+
+    Formatted String (with datetime values applied):
+    Sunday, October 31, 2004 at 13:12
+    ```
+
+    #### Use All Placeholders:
+    ```bash
+    $ python d8fmt.py -a
+    Output: day=Sunday Sun 31 mon=October Oct 10 y=04 2004 hr=01PM/13 min=12 s=11.000000 ...
+    ```
+
+    #### Use Canonical Datetime:
+    ```bash
+    $ python d8fmt.py -c "{MONTH} {DAY#}, {YEAR4}, at {HOUR12}:{MINUTE} {AM}"
+    Output: October 31, 2004, at 01:12 PM
+    ```
+    """
+
+    # Build the parer for this app
+    parser = make_d8fmt_parser()
+
 
     try:
         args = parser.parse_args()
         if args.all:
-            args.format_string = "day={DAY} {DAY3} {DAY#} mon={MONTH} {MONTH3} {MONTH#} y={YEAR2} {YEAR4} " \
-                                 "hr={HOUR12}{PM}/{HOUR24} min={MINUTE} s={SECOND}.{MICROSEC} " \
-                                 "DOY={DOY} WeekOfYear={WOY} WeakOfYearIso={WOYISO} " \
+            args.format_string = "day={DAY} {DAY3} {DAY#} mon={MONTH} {MONTH3} {MONTH#} y={YEAR2}" \
+                                 " {YEAR4} hr={HOUR12}{PM}/{HOUR24} min={MINUTE} s={SECOND}." \
+                                 "{MICROSEC} DOY={DOY} WeekOfYear={WOY} WeakOfYearIso={WOYISO} " \
                                  "WDAY#={WDAY#} WDAY#ISO={WDAY#ISO} LOCALE={LOCALE}"
 
         # Determine the datetime to use
@@ -490,7 +485,8 @@ def run_cli():
 
     except KeyError as e:
         # If a macro is missing in the lookup table, handle gracefully
-        print(f"Error: Missing macro in the format string - {e}", file=sys.stderr)
+        print(f"Error: Missing macro in fmt string-{e}. Are macros in format string are defined?",
+              file=sys.stderr)
         sys.exit(1)  # Exit code 1 indicates general error
 
     except Exception as e:
@@ -499,6 +495,6 @@ def run_cli():
         sys.exit(2)  # Use a different exit code for unexpected failures
 
 
-if __name__ == "__main__": # pragma: no cover
+if __name__ == "__main__":  # pragma: no cover
 
     run_cli()

@@ -20,53 +20,49 @@ print(d.ezftime("{HOUR24}:{MINUTE}:{SECOND} Day of year = {DOY}"))  # Outputs: 1
 ```
 
 
-# Format By Example for Datetime
+## Format By Example for Datetime
+`d8fmt` is a Python module designed to transform canonical datetime examples into deterministic and platform-independent format strings using `strftime` directives. It provides two flexible ways to define readable and human-friendly format strings:
+### 1. Canonical Examples
+You can specify a **unique, deterministic datetime example** to define how dates should be formatted. The canonical example ensures that all components of the datetime are unique and easily converted into appropriate `strftime` directives.
+Example:
+``` plaintext
+Input: Sunday October 31 2004 13:12:11.000000
+Output: "%A %B %d %Y %H:%M:%S.%f"
+```
+By using this approach, `d8fmt` automatically parses your example and generates the correct format string by detecting unique components like the day, month, year, and time.
+### 2. Readable English-Like Macros
+For better readability, you can use **tokenized macros** that clearly represent datetime components in plain English. These macros replace cryptic `strftime` directives with easy-to-understand placeholders.
+Example:
+``` plaintext
+Input: {YEAR4}/{MONTH#}/{DAY#} {HOUR24}:{MINUTE}:{SECOND}.{MICROSEC}
+Output: "%Y/%m/%d %H:%M:%S.%f"
+```
+This method is more verbose but ensures clarity and correctness. It’s especially useful for generating consistent and understandable format strings.
+### Key Features
+- **Deterministic Parsing**: Every component in the canonical example (e.g., October 31, 2004, 13:12:11) is unique, ensuring consistent and accurate parsing into `strftime` formats.
+- **Flexibility**: Both human-friendly macros and canonical examples work seamlessly with mixed format strings (e.g., separators like `/`, `-`, or even text).
+- **Versatility**: If a part of the input doesn’t match a known macro or directive, it simply passes through as-is.
 
-A Python module designed to transform canonical datetime examples into deterministic and 
-platform-independent format strings using `strftime` directives. 
-Human-readable "canonical" dates, or human-readable variable substitutions may be used
-to create readable format strings rather than the cryptic strings like `%b. %d %Y %I-%M-%S %p`.
+### Custom Usage Scenarios
+1. **Macro-Based Formatting** (English Tokens):
+``` python
+"{YEAR4}/{MONTH#}/{DAY#}" → "%Y/%m/%d"
+```
 
-`d8fmt` gives two ways to format dates that are readable a canonical date where all parts
-of the date are unique and a deterministic date time can be created.
+2. **Canonical-Style Formatting** (Format from a fixed date example):
+``` python
+"Sunday October 31 2004 13:12:11.000000" → "%A %B %d %Y %H:%M:%S.%f"
+```
 
-A canonical examplar can be provided that requires you to show how you want the date 
-Sunday, October 31st 2004, 01:12:13.000000 PM to be formatted.  If you provide a string
-showing how you want this date formatted the code will figure required datetime format.
+3. **Mixed Styles (not really recommended)**:
+``` python
+"Oct {DAY#}, {YEAR4} at {HOUR12}:{MINUTE} {PM}" → "%b %d, %Y at %I:%M %p"
+```
 
-```Sunday October 31 2004 13:12:11.000000```
-
-Provide the above string as your format specifier and your dates will use that format.  This
-works because the canonical date has unique values for every part of the datetime so the
-string can be parsed deterministically directly into % directives.
-
-If this feels like too much magic, you can also use format specifiers that are in "english"
-that makes format strings more readable (in the sense that it is clear what the parts are.)
-The above format would look like this:
-
-```{DAY} {MONTH} {DAY#} {YEAR4} {HOUR24}:{MINUTE}:{SECOND}.{MICROSEC}``` 
-
-This datetime has unique values for all numeric quantities as shown in the table below. So
-every time you want a date formatted you give an example for the date **0/31/2004 13:12:11.00000**
-which was a Sunday, in October, in the 43rd ISO Week and the 44 Week, the 7th ISO day-of-week
-and the 0th iso-day-of-week...and was the 305th day of the year.  Those numbers are all unique. 
-Use those numbers in your format string and the code will figure out what you mean.
-
-The second way is through English 'macro' substitutions that are more verbose but more readable
-that the canonical form.
-
-`{YEAR4}/{MONTH#}/{DAY#} {HOUR24}:{MINUTE}:{SECOND}.{MICROSEC}` to generate  ```2004/10/31 13:12:11.000000```
-
-This creates strings that are readable but quite verbose, ensuring you will know the values are correct
-but you won't have a sense of what the string looks like.
-
-Below is a table showing how the two systems relate.  As it is now you can use any of the format strings,
-and it should "just work" since all 3 systems are unique and there is no overlap between them.  Any characters
-that don't fit into the canonical or {macro} names will just pass through.  Common separators like /,- will just pass
-through.  It is recommended that you use this code to build the datetime strings only rather that trying
-to format an entire paragraph of text with a few date strings in the middle.  The canonical formats will likely
-collide in unexpected ways if any of the values in the first column appear in your text.
-
+### Notes
+- Canonical examples and macros are **mutually compatible** and can be mixed freely in a single format.
+- Common separators like spaces, slashes (`/`), or dashes (`-`) pass through unchanged.
+- Avoid using overly long text as part of your format, as it may unexpectedly coincide with valid components.
 
 
 | **Canonical<br>Oct 31 2004 13:12:11** | **Macro**    | **Description**                                 | **%Format** |
@@ -243,15 +239,16 @@ Formatted String (with datetime values applied):
 Thu Aug 21 11:38:38
 
 
-(d8fmt) chuck@Chucks-Mac-mini src % python -m d8fmt "Todays Date Time: {MONTH#}/{DAY#}/{YEAR4} {HOUR24}:{MINUTE}:{SECOND}"
-Todays Date Time: 08/21/2025 11:43:53
+(d8fmt) chuck@Chucks-Mac-mini src % python -m d8fmt "{MONTH#}/{DAY#}/{YEAR4} {HOUR24}:{MINUTE}:{SECOND}"
+08/21/2025 11:43:53
 
 
 ````
 
 ## Testing
 
-Run tests to confirm functionality and validation.  
+Run tests to confirm functionality and validation.  As it currently sits `d8fmt` has 100% code coverage,
+using 107 tests with a lint scroe of 9.78/10.
 
 ```bash
 pytest test_d8fmt.py
@@ -260,11 +257,11 @@ pytest test_d8fmt.py
 Example Output:
 ```plaintext
 ========================== test session starts =========================
-collected 100 items
+collected 107 items
 
 test_d8fmt.py ........................                                    [100%]
 
-=========================== 100 passed in 0.11s =========================
+=========================== 107 passed in 0.11s =========================
 ```
 
 ---
