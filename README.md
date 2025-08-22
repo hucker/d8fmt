@@ -1,3 +1,25 @@
+# d8fmt - Readable Formatting for Datetimes.
+
+## Quickstart
+
+Install the package:
+```bash
+pip install d8fmt
+```
+Format a date using the CLI:
+```bash
+python -m d8fmt -c "{YEAR4}-{MONTH#}-{DAY#}" 
+>> 13:12:00
+```
+Use it in Python:
+```python
+from d8fmt import datetime_ez
+
+d = datetime_ez(year=2004, month=10, day=31, hour=13, minute=12, second=0)
+print(d.ezftime("{HOUR24}:{MINUTE}:{SECOND} Day of year = {DOY}"))  # Outputs: 13:12:00 Day of year = 305
+```
+
+
 # Format By Example for Datetime
 
 A Python module designed to transform canonical datetime examples into deterministic and 
@@ -87,9 +109,8 @@ Here are some examples of converting these format strings into datetime ready fo
 '%Y-%m-%dT%H:%M:%S.%f'
 ```
 
+Note: `d8fmt` does NOT yet support timezones or offsets.
 
-Note: `d8fmt` does NOT support timezones or offsets as those seem to already only sort of work.
-Note: `d8fmt` does NOT (yet) extend the `strftime` functionality even though there are many opportunities.
 ---
 
 ## Features
